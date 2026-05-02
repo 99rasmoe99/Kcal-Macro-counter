@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ETHIO•KCAL – Meat vs Veg | Smart Plate Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- Chart.js for radar -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- html2canvas for export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 1.5rem;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #facc15, #38bdf8);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 999px;
+      border: 1px solid #1f2937;
+      background: #0f172a;
+      color: #f1f5f9;
+      font-size: 0.9rem;
+      transition: 0.2s;
+    }
+    .search-bar input:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56,189,248,0.3);
+    }
+    .filters, .sort-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1rem 0 0.75rem;
+    }
+    .filters button, .sort-bar button {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      color: #cbd5e1;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filters button:hover, .sort-bar button:hover {
+      background: #1e293b;
+      border-color: #38bdf8;
+      color: white;
+    }
+    .foods-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 1.2rem 0;
+    }
+    .foods-col {
+      background: #020617;
+      padding: 0.5rem;
+      border-radius: 1.5rem;
+      border: 1px solid #1e293b;
+    }
+    .col-title {
+      margin: 0 0 0.8rem 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+    }
+    #meatColumn, #vegColumn {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .food-card {
+      background: #0f172a;
+      border-radius: 1.2rem;
+      border: 1px solid #1e293b;
+      padding: 0.8rem;
+      transition: transform 0.2s ease, border-color 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .food-card:hover {
+      transform: translateY(-3px);
+      border-color: #38bdf8;
+    }
+    .food-card img {
+      width: 100%;
+      border-radius: 0.9rem;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      background: #1e293b;
+    }
+    .food-card h3 {
+      font-size: 0.95rem;
+      margin: 0.5rem 0 0.2rem;
+    }
+    .macro-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 30px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin: 0.3rem 0;
+      width: fit-content;
+    }
+    .badge-protein { background: #22c55e; color: #052e16; }
+    .badge-carbs   { background: #3b82f6; color: #eff6ff; }
+    .badge-fat     { background: #f97316; color: #2c0f00; }
+    .badge-balanced{ background: #a855f7; color: #f3e8ff; }
+    .healthy-score {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      margin: 4px 0;
+    }
+    .macro-block {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+    }
+    .macro-item {
+      background: #020617;
+      padding: 0.3rem 0.6rem;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      font-size: 0.75rem;
+    }
+    .macro-item span {
+      color: #94a3b8;
+      font-size: 0.7rem;
+    }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 4px;
+    }
+    .bar-row span {
+      width: 52px;
+      font-size: 0.7rem;
+    }
+    .bar {
+      flex: 1;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.4s ease;
+    }
+    .protein-fill { background: #22c55e; }
+    .fat-fill { background: #f97316; }
+    .carbs-fill { background: #3b82f6; }
+    .summary-bar {
+      margin-top: 1rem;
+      background: #0f172a;
+      border-radius: 1.2rem;
+      padding: 0.8rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      border: 1px solid #1e293b;
+    }
+    .comparison-card {
+      margin-top: 1.8rem;
+      background: #0f172a;
+      border-radius: 1.2rem;
+      padding: 1rem;
+      border: 1px solid #1e293b;
+    }
+    .comparison-table {
+      width: 100%;
+      font-size: 0.8rem;
+      border-collapse: collapse;
+    }
+    .comparison-table th, .comparison-table td {
+      padding: 0.5rem 0.2rem;
+      border-bottom: 1px solid #1e293b;
+      text-align: left;
+    }
+    .totals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .goal-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+      margin: 0.8rem 0;
+    }
+    .progress-bar {
+      height: 10px;
+      background: #1e293b;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #22c55e, #facc15, #f97316);
+      transition: width 0.25s;
+    }
+    .plate-row {
+      border-bottom: 1px solid #1e293b;
+      padding: 1rem 0;
+    }
+    .plate-main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .portion-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .portion-controls button {
+      background: #1e293b;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 40px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .remove-btn, .swap-btn {
+      background: transparent;
+      border: 1px solid #334155;
+      padding: 0.2rem 0.8rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      margin-top: 0.4rem;
+      margin-right: 0.5rem;
+    }
+    .swap-btn { color: #38bdf8; }
+    .remove-btn { color: #f97373; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    .modal.hidden { display: none; }
+    .modal-content {
+      background: #0f172a;
+      border-radius: 1.5rem;
+      max-width: 380px;
+      width: 90%;
+      padding: 1rem;
+      border: 1px solid #38bdf8;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #radarChart { max-width: 100%; height: auto; margin: 0.5rem 0; }
+    button {
+      transition: all 0.15s;
+    }
+    button:active { transform: scale(0.97); }
+    @media (max-width: 720px) {
+      .foods-two-col { grid-template-columns: 1fr; }
+      body { padding: 1rem; }
+    }
+    .food-card-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+    }
+    .food-card button {
+      background: #1e293b;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 40px;
+      color: white;
+      font-size: 0.7rem;
+      cursor: pointer;
+      flex: 1;
+      font-weight: 500;
+    }
+    .food-card .add-btn { background: #2d3a5e; }
+    .food-card .add-btn:hover { background: #38bdf8; color: #0f172a; }
+    .food-card .compare-btn { background: #7c3aed; }
+    .food-card .compare-btn:hover { background: #a855f7; }
+    /* COMPARE SECTION STYLES */
+    .compare-section {
+      margin-top: 30px;
+      background: #0f172a;
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      border: 1px solid #1e293b;
+    }
+    .compare-section h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #facc15;
+    }
+    .compare-selectors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .compare-card {
+      flex: 1;
+      background: #020617;
+      border-radius: 1.2rem;
+      padding: 0.8rem;
+      border: 1px solid #334155;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .compare-card.selected {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
+    }
+    .compare-card .dish-placeholder {
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .compare-card img {
+      width: 100%;
+      max-width: 130px;
+      border-radius: 1rem;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      background: #1e293b;
+      margin-bottom: 8px;
+    }
+    .compare-card h4 {
+      margin: 8px 0 4px;
+      font-size: 1rem;
+    }
+    .compare-badge {
+      font-size: 0.7rem;
+      background: #1e293b;
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      color: #94a3b8;
+    }
+    .reset-compare {
+      background: #1e293b;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      margin-top: 10px;
+      cursor: pointer;
+      color: #facc15;
+    }
+    .compare-stats {
+      overflow-x: auto;
+    }
+    .compare-stats table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .compare-stats th, .compare-stats td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid #1e293b;
+    }
+    .compare-stats th {
+      color: #facc15;
+      font-weight: 500;
+    }
+    .diff-positive {
+      color: #22c55e;
+      font-weight: 600;
+    }
+    .diff-negative {
+      color: #f97316;
+      font-weight: 600;
+    }
+    .vs-icon {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .compare-hint {
+      font-size: 0.7rem;
+      text-align: center;
+      margin-top: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🇪🇹 ETHIO•KCAL – Meat vs Veg • Smart Plate</h1>
+</header>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="🔍 Search dishes (doro wot, shiro, tibs...)">
+</div>
+
+<div class="filters">
+  <button data-filter="all">🍽️ All</button>
+  <button data-filter="meat">🥩 Meat Entrées</button>
+  <button data-filter="veg">🥬 Vegetable Choices</button>
+</div>
+
+<div class="sort-bar">
+  <button data-sort="kcal">🔥 Lowest Kcal</button>
+  <button data-sort="protein">💪 Highest Protein</button>
+  <button data-sort="balanced">⚖️ Most Balanced</button>
+</div>
+
+<div class="foods-two-col">
+  <div class="foods-col"><h2 class="col-title">🥩 MEAT ENTRÉES</h2><div id="meatColumn"></div></div>
+  <div class="foods-col"><h2 class="col-title">🥬 VEGETABLE CHOICES</h2><div id="vegColumn"></div></div>
+</div>
+
+<!-- DISH A vs DISH B COMPARISON AREA -->
+<section class="compare-section" id="compareSection">
+  <h2>⚖️ Dish A vs Dish B – Nutrition Face‑Off</h2>
+  <div class="compare-selectors">
+    <div class="compare-card" id="compareACard">
+      <div class="dish-placeholder" id="dishAPlaceholder">
+        <img id="compareAImg" src="https://placehold.co/200x260?text=Dish+A" alt="Dish A">
+        <h4 id="compareAName">— Select Dish A —</h4>
+        <span class="compare-badge" id="compareABadge">Click "Compare" on any dish</span>
+        <button class="reset-compare" data-reset="A">Reset A</button>
+      </div>
+    </div>
+    <div class="compare-card" id="compareBCard">
+      <div class="dish-placeholder" id="dishBPlaceholder">
+        <img id="compareBImg" src="https://placehold.co/200x260?text=Dish+B" alt="Dish B">
+        <h4 id="compareBName">— Select Dish B —</h4>
+        <span class="compare-badge" id="compareBBadge">Click "Compare" on any dish</span>
+        <button class="reset-compare" data-reset="B">Reset B</button>
+      </div>
+    </div>
+  </div>
+  <div class="compare-stats">
+    <table id="compareTable">
+      <thead>
+        <tr><th>Nutrient</th><th>🥘 Dish A</th><th>🥗 Dish B</th><th>📊 Difference (A - B)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>🔥 Energy (kcal)</td><td id="compAKcal">—</td><td id="compBKcal">—</td><td id="compDiffKcal">—</td></tr>
+        <tr><td>💪 Protein (g)</td><td id="compAProtein">—</td><td id="compBProtein">—</td><td id="compDiffProtein">—</td></tr>
+        <tr><td>🫒 Fat (g)</td><td id="compAFat">—</td><td id="compBFat">—</td><td id="compDiffFat">—</td></tr>
+        <tr><td>🍚 Carbs (g)</td><td id="compACarbs">—</td><td id="compBCarbs">—</td><td id="compDiffCarbs">—</td></tr>
+        <tr><td>🌾 Fiber (g)</td><td id="compAFiber">—</td><td id="compBFiber">—</td><td id="compDiffFiber">—</td></tr>
+        <tr><td>⚙️ Iron (mg)</td><td id="compAIron">—</td><td id="compBIron">—</td><td id="compDiffIron">—</td></tr>
+        <tr><td>🦴 Calcium (mg)</td><td id="compACalcium">—</td><td id="compBCalcium">—</td><td id="compDiffCalcium">—</td></tr>
+      </tbody>
+    </table>
+    <div class="compare-hint">✨ Click the <strong style="color:#a855f7">🔍 Compare</strong> button on any dish to assign it to A or B. First click = Dish A, second click = Dish B.</div>
+  </div>
+</section>
+
+<div class="summary-bar">
+  <span>🥩 Meat kcal: <strong id="meatTotal">0</strong></span>
+  <span>🥬 Veg kcal: <strong id="vegTotal">0</strong></span>
+  <span>⚡ Difference: <strong id="diffTotal">0</strong></span>
+  <button id="clearAllBtn">🗑️ Clear Plate</button>
+</div>
+
+<section id="plateSection" class="comparison-card">
+  <h2>🍽️ Build My Plate (portion control)</h2>
+  <div id="plateList"></div>
+  <button id="exportPlateBtn" style="margin-top: 1rem;">📸 Export Plate as Image</button>
+</section>
+
+<section id="totalsSection" class="comparison-card">
+  <h2>📈 Your Plate Totals</h2>
+  <div class="totals-grid">
+    <div><span>🔥 Kcal</span><strong id="totalKcal">0</strong></div>
+    <div><span>💪 Protein (g)</span><strong id="totalProtein">0</strong></div>
+    <div><span>🫒 Fat (g)</span><strong id="totalFat">0</strong></div>
+    <div><span>🍚 Carbs (g)</span><strong id="totalCarbs">0</strong></div>
+    <div><span>🌾 Fiber (g)</span><strong id="totalFiber">0</strong></div>
+    <div><span>⚙️ Iron (mg)</span><strong id="totalIron">0</strong></div>
+    <div><span>🦴 Calcium (mg)</span><strong id="totalCalcium">0</strong></div>
+  </div>
+  <div class="macro-bars">
+    <div class="bar-row"><span>Protein</span><div class="bar"><div class="fill protein-fill" id="globalProteinFill"></div></div></div>
+    <div class="bar-row"><span>Fat</span><div class="bar"><div class="fill fat-fill" id="globalFatFill"></div></div></div>
+    <div class="bar-row"><span>Carbs</span><div class="bar"><div class="fill carbs-fill" id="globalCarbsFill"></div></div></div>
+  </div>
+  <div class="goal-row">
+    <span>🎯 Daily goal: <strong id="goalKcalLabel">2000</strong> kcal</span>
+    <input type="range" id="goalKcalInput" min="1200" max="3500" step="50" value="2000">
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="kcalProgress"></div></div>
+  <button id="saveDayBtn">💾 Save Today's Summary</button>
+  <div id="weeklySummary" style="margin-top: 12px; font-size: 0.75rem;"></div>
+</section>
+
+<div id="detailsModal" class="modal hidden">
+  <div class="modal-content">
+    <img id="modalImage" src="" alt="" style="border-radius: 16px;">
+    <h2 id="modalName"></h2>
+    <div class="macro-block" id="modalMacroBlock"></div>
+    <div class="macro-bars" id="modalBars"></div>
+    <canvas id="radarChart" width="260" height="260"></canvas>
+    <p id="modalDescription" style="font-size: 0.8rem; margin-top: 10px;"></p>
+    <button class="close-btn" id="closeModalBtn" style="margin-top: 12px; width:100%;">Close</button>
+  </div>
+</div>
+
+<script>
+  // ---------- FOOD DATABASE (complete) ----------
+  const FOODS_DB = [
+    { id:1, name:"Doro Wot", kcal:350, protein:28, carbs:14, fat:22, fiber:3, iron:2.8, calcium:35, image:"https://tse4.mm.bing.net/th/id/OIP.IK3MssI7-pTsdFvZpl-kWAHaF2?rs=1&pid=ImgDetMain", category:"meat", description:"Spicy chicken stew with berbere & hard-boiled egg." },
+    { id:2, name:"Kitfo", kcal:420, protein:32, carbs:2, fat:36, fiber:1, iron:3.5, calcium:28, image:"https://th.bing.com/th/id/OIP.L_7irjRnNSMVbARkuGUZVgHaHa?w=180&h=180&c=7&r=0&o=7&pid=1.7", category:"meat", description:"Minced raw beef with mitmita & spiced butter." },
+    { id:3, name:"Beef Tibs", kcal:390, protein:30, carbs:5, fat:28, fiber:2, iron:3.1, calcium:22, image:"https://images.squarespace-cdn.com/content/v1/51c325ece4b01f1752ee3259/1592488907301-HYXR2WFC7BXFJHXMOL8U/DSC00054.jpg", category:"meat", description:"Sautéed beef with onions & rosemary." },
+    { id:4, name:"Dulet", kcal:480, protein:35, carbs:6, fat:32, fiber:1, iron:4.2, calcium:30, image:"https://ethiopian-food.org/wp-content/uploads/2024/02/Dulet-Ethiopian-Fried-Tripe-and-Liver-Recipe.jpg", category:"meat", description:"Spicy mix of tripe, liver & lean meat." },
+    { id:5, name:"Gored Gored", kcal:450, protein:25, carbs:10, fat:30, fiber:1.5, iron:3.0, calcium:20, image:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Gored_gored_plate%2C_July_2019.jpg/250px-Gored_gored_plate%2C_July_2019.jpg", category:"meat", description:"Cubed raw beef, spiced & buttered." },
+    { id:6, name:"Siga Wot", kcal:400, protein:20, carbs:6, fat:30, fiber:2, iron:2.5, calcium:25, image:"https://www.daringgourmet.com/wp-content/uploads/2018/01/Sega-Wat-2.jpg", category:"meat", description:"Beef stew with berbere, rich & deep." },
+    { id:7, name:"Yebeg Wot", kcal:380, protein:25, carbs:8, fat:28, fiber:2, iron:2.9, calcium:32, image:"https://ethiopian-food.org/wp-content/uploads/2022/12/YeBeg-Wot-Ethiopian-Lamb-Stew-750x422.jpg", category:"meat", description:"Lamb stew with berbere & aromatic spices." },
+    { id:8, name:"Yebeg Alicha", kcal:360, protein:20, carbs:10, fat:20, fiber:3, iron:2.2, calcium:40, image:"https://tarasmulticulturaltable.com/wp-content/uploads/2023/02/Ye-Beg-Alicha-Wot-Mild-Lamb-Stew-2-of-4-683x1024.jpg", category:"meat", description:"Mild turmeric lamb stew, gentle flavor." },
+    { id:9, name:"Shiro Wot", kcal:280, protein:12, carbs:30, fat:10, fiber:8, iron:4.0, calcium:60, image:"https://www.fermentingforfoodies.com/wp-content/uploads/2019/06/Gluten-free-and-vegan-shiro-wat.jpg", category:"veg", description:"Chickpea flour stew, protein-rich vegan." },
+    { id:10, name:"Misir Wot", kcal:310, protein:18, carbs:40, fat:8, fiber:12, iron:3.8, calcium:45, image:"https://www.chefspencil.com/wp-content/uploads/misir-wat.png", category:"veg", description:"Red lentil stew with berbere." },
+    { id:11, name:"Gomen", kcal:150, protein:6, carbs:10, fat:9, fiber:5, iron:2.1, calcium:130, image:"https://www.spiceindiaonline.com/wp-content/uploads/l_spinach2.jpg", category:"veg", description:"Collard greens with garlic & ginger." },
+    { id:12, name:"Atkilt Wot", kcal:180, protein:5, carbs:22, fat:8, fiber:4.5, iron:1.2, calcium:55, image:"https://i.pinimg.com/originals/e7/9d/50/e79d50c64a6858c7ca2a3a94ce9fc1f7.png", category:"veg", description:"Cabbage, carrots & potato turmeric stew." },
+    { id:13, name:"Firfir", kcal:350, protein:10, carbs:42, fat:14, fiber:6, iron:2.5, calcium:48, image:"https://allaboutethio.com/images/quanta-firfir.jpg", category:"veg", description:"Shredded injera with spiced sauce." },
+    { id:14, name:"Kik Alicha", kcal:240, protein:14, carbs:32, fat:4, fiber:9, iron:2.9, calcium:38, image:"https://loveandnibbles.com/wp-content/uploads/2025/06/drivexmidjourney_Ethiopian_Split_Pea_Stew_Amateur_photo_from_Re_7334025f-0f6b-4328-a890-a79e539af046.webp", category:"veg", description:"Yellow split peas with turmeric." },
+    { id:15, name:"Beyaynetu", kcal:600, protein:20, carbs:80, fat:18, fiber:15, iron:4.5, calcium:110, image:"https://i.ytimg.com/vi/XGv6hfosePw/maxresdefault.jpg", category:"veg", description:"Vegan platter, variety of wots & veggies." },
+    { id:16, name:"Fosolia", kcal:160, protein:6, carbs:22, fat:6, fiber:5, iron:1.5, calcium:44, image:"https://th.bing.com/th?&id=OVP.ZXu-aOU0xIh4OS4msKWITwEsDh&w=313&h=175&c=7&pid=2.1&rs=1", category:"veg", description:"Green beans & carrots sautéed." },
+    { id:17, name:"Genfo", kcal:300, protein:8, carbs:50, fat:8, fiber:6, iron:2.2, calcium:28, image:"https://ethiopian-food.org/wp-content/uploads/2024/01/Genfo-01.jpg", category:"veg", description:"Barley porridge, spiced butter." },
+    { id:18, name:"Chechebsa", kcal:420, protein:9, carbs:55, fat:18, fiber:4, iron:1.8, calcium:25, image:"https://i.ytimg.com/vi/vL9WVaNFOoY/maxresdefault.jpg", category:"veg", description:"Pan-fried dough, kibbeh & berbere." },
+    { id:19, name:"Injera", kcal:120, protein:4, carbs:24, fat:1, fiber:3, iron:2.0, calcium:18, image:"https://th.bing.com/th/id/OIP.t7e81hVvtb0m-ZV2iaNywwHaEK?w=278&h=180&c=7&r=0&o=7&pid=1.7", category:"veg", description:"Teff flatbread, slight tang." },
+    { id:20, name:"Tihlo", kcal:350, protein:10, carbs:50, fat:12, fiber:7, iron:2.3, calcium:30, image:"https://i.ytimg.com/vi/zMOTQFdKmUU/maxresdefault.jpg", category:"veg", description:"Roasted barley dough balls." }
+  ];
+
+  let foods = [...FOODS_DB];
+  let plate = [];
+  let currentFilter = "all";
+  let currentSort = null;
+  let searchTerm = "";
+  let dailyGoalKcal = 2000;
+  let radarChartInstance = null;
+
+  // COMPARE STATE
+  let compareA = null;
+  let compareB = null;
+
+  const meatCol = document.getElementById("meatColumn");
+  const vegCol = document.getElementById("vegColumn");
+  const plateListDiv = document.getElementById("plateList");
+  const searchInput = document.getElementById("searchInput");
+
+  function computeHealthyScore(item) {
+    let score = 60;
+    score += (item.protein || 0) * 0.8;
+    score += (item.fiber || 0) * 1.2;
+    score -= (item.fat || 0) * 0.6;
+    score -= Math.max(0, (item.kcal - 450) * 0.05);
+    return Math.min(100, Math.max(0, Math.round(score)));
+  }
+
+  function getBadgeType(item) {
+    const { protein, fat, carbs } = item;
+    const maxVal = Math.max(protein, fat, carbs);
+    if (maxVal === protein) return "protein";
+    if (maxVal === fat) return "fat";
+    if (maxVal === carbs) return "carbs";
+    return "balanced";
+  }
+
+  // UPDATE COMPARE UI
+  function updateCompareUI() {
+    if (compareA) {
+      document.getElementById("compareAName").innerText = compareA.name;
+      document.getElementById("compareAImg").src = compareA.image;
+      document.getElementById("compareABadge").innerHTML = `${compareA.category === 'meat' ? '🥩' : '🥬'} ${compareA.name}`;
+      document.getElementById("compAKcal").innerText = compareA.kcal;
+      document.getElementById("compAProtein").innerText = compareA.protein.toFixed(1);
+      document.getElementById("compAFat").innerText = compareA.fat.toFixed(1);
+      document.getElementById("compACarbs").innerText = compareA.carbs.toFixed(1);
+      document.getElementById("compAFiber").innerText = (compareA.fiber||0).toFixed(1);
+      document.getElementById("compAIron").innerText = (compareA.iron||0).toFixed(1);
+      document.getElementById("compACalcium").innerText = Math.round(compareA.calcium||0);
+    } else {
+      document.getElementById("compareAName").innerText = "— Select Dish A —";
+      document.getElementById("compareAImg").src = "https://placehold.co/200x260?text=Dish+A";
+      document.getElementById("compareABadge").innerHTML = "Click Compare on any dish";
+      ["compAKcal","compAProtein","compAFat","compACarbs","compAFiber","compAIron","compACalcium"].forEach(id => document.getElementById(id).innerText = "—");
+    }
+    if (compareB) {
+      document.getElementById("compareBName").innerText = compareB.name;
+      document.getElementById("compareBImg").src = compareB.image;
+      document.getElementById("compareBBadge").innerHTML = `${compareB.category === 'meat' ? '🥩' : '🥬'} ${compareB.name}`;
+      document.getElementById("compBKcal").innerText = compareB.kcal;
+      document.getElementById("compBProtein").innerText = compareB.protein.toFixed(1);
+      document.getElementById("compBFat").innerText = compareB.fat.toFixed(1);
+      document.getElementById("compBCarbs").innerText = compareB.carbs.toFixed(1);
+      document.getElementById("compBFiber").innerText = (compareB.fiber||0).toFixed(1);
+      document.getElementById("compBIron").innerText = (compareB.iron||0).toFixed(1);
+      document.getElementById("compBCalcium").innerText = Math.round(compareB.calcium||0);
+    } else {
+      document.getElementById("compareBName").innerText = "— Select Dish B —";
+      document.getElementById("compareBImg").src = "https://placehold.co/200x260?text=Dish+B";
+      document.getElementById("compareBBadge").innerHTML = "Click Compare on any dish";
+      ["compBKcal","compBProtein","compBFat","compBCarbs","compBFiber","compBIron","compBCalcium"].forEach(id => document.getElementById(id).innerText = "—");
+    }
+    if (compareA && compareB) {
+      const diffKcal = compareA.kcal - compareB.kcal;
+      const diffProtein = compareA.protein - compareB.protein;
+      const diffFat = compareA.fat - compareB.fat;
+      const diffCarbs = compareA.carbs - compareB.carbs;
+      const diffFiber = (compareA.fiber||0) - (compareB.fiber||0);
+      const diffIron = (compareA.iron||0) - (compareB.iron||0);
+      const diffCalcium = (compareA.calcium||0) - (compareB.calcium||0);
+      document.getElementById("compDiffKcal").innerHTML = `<span class="${diffKcal>=0?'diff-positive':'diff-negative'}">${diffKcal > 0 ? '+' : ''}${diffKcal.toFixed(0)}</span>`;
+      document.getElementById("compDiffProtein").innerHTML = `<span class="${diffProtein>=0?'diff-positive':'diff-negative'}">${diffProtein > 0 ? '+' : ''}${diffProtein.toFixed(1)}</span>`;
+      document.getElementById("compDiffFat").innerHTML = `<span class="${diffFat>=0?'diff-positive':'diff-negative'}">${diffFat > 0 ? '+' : ''}${diffFat.toFixed(1)}</span>`;
+      document.getElementById("compDiffCarbs").innerHTML = `<span class="${diffCarbs>=0?'diff-positive':'diff-negative'}">${diffCarbs > 0 ? '+' : ''}${diffCarbs.toFixed(1)}</span>`;
+      document.getElementById("compDiffFiber").innerHTML = `<span class="${diffFiber>=0?'diff-positive':'diff-negative'}">${diffFiber > 0 ? '+' : ''}${diffFiber.toFixed(1)}</span>`;
+      document.getElementById("compDiffIron").innerHTML = `<span class="${diffIron>=0?'diff-positive':'diff-negative'}">${diffIron > 0 ? '+' : ''}${diffIron.toFixed(1)}</span>`;
+      document.getElementById("compDiffCalcium").innerHTML = `<span class="${diffCalcium>=0?'diff-positive':'diff-negative'}">${diffCalcium > 0 ? '+' : ''}${diffCalcium.toFixed(0)}</span>`;
+    } else {
+      ["compDiffKcal","compDiffProtein","compDiffFat","compDiffCarbs","compDiffFiber","compDiffIron","compDiffCalcium"].forEach(id => document.getElementById(id).innerText = "—");
+    }
+    document.getElementById("compareACard").classList.toggle("selected", !!compareA);
+    document.getElementById("compareBCard").classList.toggle("selected", !!compareB);
+  }
+
+  // assign dish to comparison (explicit compare button)
+  function assignToCompare(dish) {
+    if (!compareA) {
+      compareA = dish;
+    } else if (!compareB && compareA !== dish) {
+      compareB = dish;
+    } else if (compareA && compareB) {
+      // if both are full, replace B
+      if (compareA === dish) return;
+      compareB = dish;
+    }
+    updateCompareUI();
+  }
+
+  function resetCompareSlot(slot) {
+    if (slot === 'A') compareA = null;
+    if (slot === 'B') compareB = null;
+    updateCompareUI();
+  }
+
+  // RENDER FOOD CARDS WITH EXPLICIT COMPARE BUTTON
+  function renderFoods() {
+    let filtered = foods.filter(f => {
+      if (currentFilter !== "all" && f.category !== currentFilter) return false;
+      if (searchTerm && !f.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      return true;
+    });
+    if (currentSort === "kcal") filtered.sort((a,b) => a.kcal - b.kcal);
+    else if (currentSort === "protein") filtered.sort((a,b) => b.protein - a.protein);
+    else if (currentSort === "balanced") filtered.sort((a,b) => (Math.max(a.protein,a.fat,a.carbs)-Math.min(a.protein,a.fat,a.carbs)) - (Math.max(b.protein,b.fat,b.carbs)-Math.min(b.protein,b.fat,b.carbs)));
+
+    meatCol.innerHTML = "";
+    vegCol.innerHTML = "";
+    filtered.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "food-card";
+      const badgeType = getBadgeType(item);
+      let badgeText = { protein:"High Protein", fat:"High Fat", carbs:"High Carbs", balanced:"Balanced" }[badgeType];
+      const badgeClass = `badge-${badgeType}`;
+      const score = computeHealthyScore(item);
+      card.innerHTML = `
+        <img src="${item.image}" alt="${item.name}" onerror="this.src='https://placehold.co/300x400?text=Ethiopian+Food'">
+        <h3>${item.name}</h3>
+        <div class="macro-badge ${badgeClass}">${badgeText}</div>
+        <div class="healthy-score">❤️ Healthy: <span>${score}</span>/100</div>
+        <div class="macro-block">
+          <div class="macro-item"><span>Kcal</span><strong>${Math.round(item.kcal)}</strong></div>
+          <div class="macro-item"><span>P</span><strong>${item.protein.toFixed(1)}</strong>g</div>
+          <div class="macro-item"><span>F</span><strong>${item.fat.toFixed(1)}</strong>g</div>
+          <div class="macro-item"><span>C</span><strong>${item.carbs.toFixed(1)}</strong>g</div>
+        </div>
+        <div class="macro-bars">
+          <div class="bar-row"><span>Protein</span><div class="bar"><div class="fill protein-fill" style="width:${Math.min(100, (item.protein/45)*100)}%"></div></div></div>
+          <div class="bar-row"><span>Fat</span><div class="bar"><div class="fill fat-fill" style="width:${Math.min(100, (item.fat/40)*100)}%"></div></div></div>
+          <div class="bar-row"><span>Carbs</span><div class="bar"><div class="fill carbs-fill" style="width:${Math.min(100, (item.carbs/65)*100)}%"></div></div></div>
+        </div>
+        <div class="food-card-buttons">
+          <button data-id="${item.id}" class="add-btn">+ Add to Plate</button>
+          <button data-id="${item.id}" class="compare-btn">🔍 Compare</button>
+        </div>
+      `;
+      card.querySelector(".add-btn").addEventListener("click", (e) => { e.stopPropagation(); addToPlate(item.id); });
+      card.querySelector(".compare-btn").addEventListener("click", (e) => { e.stopPropagation(); assignToCompare(item); });
+      card.addEventListener("click", () => openModal(item.id));
+      if (item.category === "meat") meatCol.appendChild(card);
+      else vegCol.appendChild(card);
+    });
+  }
+
+  function addToPlate(id) {
+    const existing = plate.find(p => p.id === id);
+    if (existing) existing.quantity += 1;
+    else plate.push({ id, quantity: 1 });
+    renderPlate();
+    updateTotalsAndSummary();
+  }
+
+  function changePortion(id, delta) {
+    const entry = plate.find(p => p.id === id);
+    if (entry) {
+      entry.quantity = Math.max(0.25, entry.quantity + delta);
+      renderPlate();
+      updateTotalsAndSummary();
+    }
+  }
+
+  function removeFromPlate(id) {
+    plate = plate.filter(p => p.id !== id);
+    renderPlate();
+    updateTotalsAndSummary();
+  }
+
+  function suggestSwap(id) {
+    const entry = plate.find(p => p.id === id);
+    if (!entry) return;
+    const original = foods.find(f => f.id === id);
+    if (!original) return;
+    const sameCat = foods.filter(f => f.category === original.category && f.id !== id);
+    if (!sameCat.length) { alert("No alternative found"); return; }
+    const currentScore = computeHealthyScore(original);
+    const better = sameCat.map(f => ({ item: f, score: computeHealthyScore(f) })).filter(x => x.score > currentScore).sort((a,b) => b.score - a.score)[0];
+    if (better) alert(`✨ Healthier swap: try "${better.item.name}" (Score ${better.score}/100) instead of "${original.name}"`);
+    else alert("No significantly healthier swap in this category.");
+  }
+
+  function renderPlate() {
+    plateListDiv.innerHTML = "";
+    for (let p of plate) {
+      const food = foods.find(f => f.id === p.id);
+      if (!food) continue;
+      const q = p.quantity;
+      const scaled = { ...food, kcal: food.kcal * q, protein: food.protein * q, fat: food.fat * q, carbs: food.carbs * q, fiber: (food.fiber||0)*q, iron: (food.iron||0)*q, calcium: (food.calcium||0)*q };
+      const row = document.createElement("div");
+      row.className = "plate-row";
+      row.innerHTML = `
+        <div class="plate-main">
+          <span class="plate-name"><strong>${food.name}</strong> (${q.toFixed(1)}x)</span>
+          <div class="portion-controls">
+            <button class="dec">−0.5</button>
+            <span>${q.toFixed(1)}</span>
+            <button class="inc">+0.5</button>
+            <button class="swap-small">🔄 Swap</button>
+          </div>
+        </div>
+        <div class="macro-block">
+          <div class="macro-item"><span>Kcal</span><strong>${Math.round(scaled.kcal)}</strong></div>
+          <div class="macro-item"><span>P</span><strong>${scaled.protein.toFixed(1)}</strong>g</div>
+          <div class="macro-item"><span>F</span><strong>${scaled.fat.toFixed(1)}</strong>g</div>
+          <div class="macro-item"><span>C</span><strong>${scaled.carbs.toFixed(1)}</strong>g</div>
+        </div>
+        <button class="remove-btn">🗑️ Remove</button>
+      `;
+      row.querySelector(".dec").onclick = () => changePortion(food.id, -0.5);
+      row.querySelector(".inc").onclick = () => changePortion(food.id, 0.5);
+      row.querySelector(".swap-small").onclick = () => suggestSwap(food.id);
+      row.querySelector(".remove-btn").onclick = () => removeFromPlate(food.id);
+      plateListDiv.appendChild(row);
+    }
+    if (plate.length === 0) plateListDiv.innerHTML = "<div style='padding:1rem; text-align:center;'>✨ Add dishes to build your plate</div>";
+  }
+
+  function getPlateTotals() {
+    let totals = { kcal:0, protein:0, fat:0, carbs:0, fiber:0, iron:0, calcium:0 };
+    for (let p of plate) {
+      const f = foods.find(fd => fd.id === p.id);
+      if (f) {
+        const q = p.quantity;
+        totals.kcal += f.kcal * q;
+        totals.protein += f.protein * q;
+        totals.fat += f.fat * q;
+        totals.carbs += f.carbs * q;
+        totals.fiber += (f.fiber||0) * q;
+        totals.iron += (f.iron||0) * q;
+        totals.calcium += (f.calcium||0) * q;
+      }
+    }
+    return totals;
+  }
+
+  function updateTotalsAndSummary() {
+    const totals = getPlateTotals();
+    document.getElementById("totalKcal").innerText = Math.round(totals.kcal);
+    document.getElementById("totalProtein").innerText = totals.protein.toFixed(1);
+    document.getElementById("totalFat").innerText = totals.fat.toFixed(1);
+    document.getElementById("totalCarbs").innerText = totals.carbs.toFixed(1);
+    document.getElementById("totalFiber").innerText = totals.fiber.toFixed(1);
+    document.getElementById("totalIron").innerText = totals.iron.toFixed(1);
+    document.getElementById("totalCalcium").innerText = Math.round(totals.calcium);
+    const maxP = 55, maxF = 50, maxC = 80;
+    document.getElementById("globalProteinFill").style.width = Math.min(100, (totals.protein/maxP)*100)+"%";
+    document.getElementById("globalFatFill").style.width = Math.min(100, (totals.fat/maxF)*100)+"%";
+    document.getElementById("globalCarbsFill").style.width = Math.min(100, (totals.carbs/maxC)*100)+"%";
+    const pct = Math.min(100, (totals.kcal / dailyGoalKcal) * 100);
+    document.getElementById("kcalProgress").style.width = pct + "%";
+
+    const meatKcal = plate.filter(p => foods.find(f=>f.id===p.id)?.category === "meat").reduce((s,p) => s + (foods.find(f=>f.id===p.id)?.kcal||0)*p.quantity,0);
+    const vegKcal = plate.filter(p => foods.find(f=>f.id===p.id)?.category === "veg").reduce((s,p) => s + (foods.find(f=>f.id===p.id)?.kcal||0)*p.quantity,0);
+    document.getElementById("meatTotal").innerText = Math.round(meatKcal);
+    document.getElementById("vegTotal").innerText = Math.round(vegKcal);
+    document.getElementById("diffTotal").innerText = Math.round(vegKcal - meatKcal);
+  }
+
+  function computeComparison() {
+    const meatItems = foods.filter(f => f.category === "meat");
+    const vegItems = foods.filter(f => f.category === "veg");
+    const avg = (arr, key) => arr.length ? arr.reduce((a,b)=>a+(b[key]||0),0)/arr.length : 0;
+    document.getElementById("cmpMeatKcal").innerText = Math.round(avg(meatItems,"kcal"));
+    document.getElementById("cmpMeatProtein").innerText = avg(meatItems,"protein").toFixed(1);
+    document.getElementById("cmpMeatFat").innerText = avg(meatItems,"fat").toFixed(1);
+    document.getElementById("cmpMeatCarbs").innerText = avg(meatItems,"carbs").toFixed(1);
+    document.getElementById("cmpMeatFiber").innerText = avg(meatItems,"fiber").toFixed(1);
+    document.getElementById("cmpVegKcal").innerText = Math.round(avg(vegItems,"kcal"));
+    document.getElementById("cmpVegProtein").innerText = avg(vegItems,"protein").toFixed(1);
+    document.getElementById("cmpVegFat").innerText = avg(vegItems,"fat").toFixed(1);
+    document.getElementById("cmpVegCarbs").innerText = avg(vegItems,"carbs").toFixed(1);
+    document.getElementById("cmpVegFiber").innerText = avg(vegItems,"fiber").toFixed(1);
+  }
+
+  function openModal(id) {
+    const item = foods.find(f => f.id === id);
+    if (!item) return;
+    document.getElementById("modalImage").src = item.image;
+    document.getElementById("modalName").innerText = item.name;
+    document.getElementById("modalDescription").innerText = item.description || "Ethiopian traditional dish";
+    const macroDiv = document.getElementById("modalMacroBlock");
+    macroDiv.innerHTML = `<div class="macro-item"><span>Kcal</span><strong>${Math.round(item.kcal)}</strong></div>
+      <div class="macro-item"><span>Protein</span><strong>${item.protein.toFixed(1)}g</strong></div>
+      <div class="macro-item"><span>Fat</span><strong>${item.fat.toFixed(1)}g</strong></div>
+      <div class="macro-item"><span>Carbs</span><strong>${item.carbs.toFixed(1)}g</strong></div>
+      <div class="macro-item"><span>Fiber</span><strong>${(item.fiber||0).toFixed(1)}g</strong></div>
+      <div class="macro-item"><span>Iron</span><strong>${(item.iron||0).toFixed(1)}mg</strong></div>`;
+    const barsDiv = document.getElementById("modalBars");
+    barsDiv.innerHTML = `<div class="bar-row"><span>Protein</span><div class="bar"><div class="fill protein-fill" style="width:${Math.min(100, (item.protein/45)*100)}%"></div></div></div>
+      <div class="bar-row"><span>Fat</span><div class="bar"><div class="fill fat-fill" style="width:${Math.min(100, (item.fat/40)*100)}%"></div></div></div>
+      <div class="bar-row"><span>Carbs</span><div class="bar"><div class="fill carbs-fill" style="width:${Math.min(100, (item.carbs/65)*100)}%"></div></div></div>`;
+    const ctx = document.getElementById("radarChart").getContext("2d");
+    if (radarChartInstance) radarChartInstance.destroy();
+    radarChartInstance = new Chart(ctx, {
+      type: "radar",
+      data: { labels: ["Protein","Fat","Carbs","Fiber"], datasets: [{ label: item.name, data: [item.protein, item.fat, item.carbs, item.fiber||0], backgroundColor: "rgba(56,189,248,0.2)", borderColor: "#38bdf8", borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: true, scales: { r: { ticks: { display: false }, grid: { color: "#334155" }, pointLabels: { color: "#cbd5e1" } } } }
+    });
+    document.getElementById("detailsModal").classList.remove("hidden");
+  }
+  window.closeModal = () => document.getElementById("detailsModal").classList.add("hidden");
+  document.getElementById("closeModalBtn").onclick = () => closeModal();
+
+  function saveToday() {
+    const totals = getPlateTotals();
+    const avgScore = plate.length ? Math.round(plate.reduce((s,p)=> s + computeHealthyScore(foods.find(f=>f.id===p.id)),0)/plate.length) : 0;
+    const entry = { date: new Date().toISOString().slice(0,10), kcal: Math.round(totals.kcal), score: avgScore };
+    let saved = JSON.parse(localStorage.getItem("ethiokcal_week") || "[]");
+    saved.push(entry);
+    if(saved.length > 7) saved = saved.slice(-7);
+    localStorage.setItem("ethiokcal_week", JSON.stringify(saved));
+    document.getElementById("weeklySummary").innerHTML = saved.map(e => `📅 ${e.date}: ${e.kcal} kcal | 🧠 ${e.score}/100`).join("<br>");
+  }
+  function restoreWeekly() {
+    const saved = JSON.parse(localStorage.getItem("ethiokcal_week") || "[]");
+    document.getElementById("weeklySummary").innerHTML = saved.map(e => `📅 ${e.date}: ${e.kcal} kcal | 🧠 ${e.score}/100`).join("<br>");
+  }
+  function clearAll() { plate = []; renderPlate(); updateTotalsAndSummary(); }
+
+  document.querySelectorAll("[data-filter]").forEach(btn => btn.addEventListener("click", (e) => { currentFilter = e.target.dataset.filter; renderFoods(); }));
+  document.querySelectorAll("[data-sort]").forEach(btn => btn.addEventListener("click", (e) => { currentSort = e.target.dataset.sort; renderFoods(); }));
+  searchInput.addEventListener("input", (e) => { searchTerm = e.target.value; renderFoods(); });
+  document.getElementById("clearAllBtn").addEventListener("click", clearAll);
+  document.getElementById("saveDayBtn").addEventListener("click", saveToday);
+  document.getElementById("exportPlateBtn").addEventListener("click", () => { const el = document.getElementById("plateSection"); if(el) html2canvas(el, { backgroundColor: "#0f172a" }).then(canvas => { const a = document.createElement("a"); a.download = "ethiopian-plate.png"; a.href = canvas.toDataURL(); a.click(); }); });
+  const goalInput = document.getElementById("goalKcalInput");
+  const goalLabel = document.getElementById("goalKcalLabel");
+  goalInput.addEventListener("input", () => { dailyGoalKcal = parseInt(goalInput.value); goalLabel.innerText = dailyGoalKcal; updateTotalsAndSummary(); });
+  document.querySelectorAll("[data-reset]").forEach(btn => btn.addEventListener("click", (e) => { const slot = e.target.getAttribute("data-reset"); resetCompareSlot(slot); }));
+
+  function init() { renderFoods(); computeComparison(); renderPlate(); updateTotalsAndSummary(); restoreWeekly(); updateCompareUI(); }
+  init();
+</script>
+</body>
+</html>
